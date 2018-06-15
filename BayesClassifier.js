@@ -17,7 +17,7 @@ function createVocaList(dataSet) {
   var vocaSet = [];
   dataSet.forEach(doc => {
     vocaSet = Array.from(new Set([...doc, ...vocaSet]));
-  })
+  });
   return vocaSet;
 }
 //切分词条
@@ -41,10 +41,10 @@ function trainNB0(trainMatrix, trainCategory) {
   var numTrainDocs = trainMatrix.length;
   var numWords = trainMatrix[0].length;// 样本数据集 转换成 向量矩阵 计算得到 每个样本的词条
   var p1Prob= sum(trainCategory)/numTrainDocs; // 输出是1 的概率 先验概率
-  var p0Num = np.array(Array(numWords).fill(0));
-  var p1Num = np.array(Array(numWords).fill(0));
+  var p0Num = np.zeros(numWords); // 拉普拉斯平滑 换成 np.ones 默认为1
+  var p1Num = np.zeros(numWords);
 
-  var p0Denom = 0.0;  var p1Denom = 0.0;
+  var p0Denom = 0.0;  var p1Denom = 0.0; // ver2:  change to 2.0
 
   for(var i = 0 ; i < numTrainDocs; i++){
     if(trainCategory[i] == 1){
@@ -57,7 +57,7 @@ function trainNB0(trainMatrix, trainCategory) {
     }
   }
   var p1Vect = p1Num.divide(p1Denom); // 计算 每个词 在侮辱性文档里出现的概率
-  var p0Vect = p0Num.divide(p0Denom);
+  var p0Vect = p0Num.divide(p0Denom); // 切换成 log 防止下溢出
   return {
     p1Vect,
     p0Vect,
@@ -93,16 +93,16 @@ var t = trainNB0(trainMat, classVec);// 训练数据集合
  */
 function classify(vec2classify, p0Vec, p1Vec, pClass1) {
   console.log(vec2classify);
-  var p1 = np.array(vec2classify).multiply(p1Vec).tolist().reduce((p, c) => p * c) * pClass1;
-  var p0 = np.array(vec2classify).multiply(p1Vec).tolist().reduce((p, c) => p * c) * pClass1;
+  var p1 = np.array(vec2classify).multiply(p1Vec).tolist().reduce((p, c) => p * c) * pClass1; // 切换成 log 防止概率相乘 极小值下溢
+  var p0 = np.array(vec2classify).multiply(p0Vec).tolist().reduce((p, c) => p * c) * pClass1;// log 做加法即可。
   if(p1 > p0){
     return 1;
   }
   return 0;
 }
 
-
 console.log(JSON.stringify(mvo));
+
 for(var key in t ){
   console.log('key:'+key);
   console.log('val:'+JSON.stringify(t[key]));
@@ -112,4 +112,6 @@ var testData = ['love', 'my', 'dalmation'];
 //测试集合 转换成 对应词向量
 var testMatrix = setOfWords2Vec(mvo, testData);
 var s = classify(testMatrix, t.p1Vect, t.p0Vect, t.p1Prob);
+
 console.log(s);
+
